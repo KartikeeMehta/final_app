@@ -1,0 +1,178 @@
+<div id="product-dimension-price-block">
+  <div class="custom-dimension-wrapper">
+    <label for="customWidth">Width (50 – 3500 mm):</label>
+    <input type="number" id="customWidth" min="50" max="3500" required />
+
+    <label for="customLength">Length (50 – 3500 mm):</label>
+    <input type="number" id="customLength" min="50" max="3500" required />
+
+    <label for="customQty">Quantity (Sheets):</label>
+    <input type="number" id="customQty" min="1" value="1" required />
+
+    <p id="customTotalPrice" style="margin-top:10px;font-weight:bold;">
+      Total Price: ₹0.00
+    </p>
+
+    <!-- Add to Cart -->
+    <button id="addToCartBtn" disabled style="opacity:.6;cursor:not-allowed;">
+      Add to Cart
+    </button>
+
+    <!-- Buy Now -->
+    <button id="buyNowBtn" disabled style="opacity:.6;cursor:not-allowed;">
+      Buy it Now
+    </button>
+  </div>
+</div>
+
+<!-- Base price per sqcm from metafield -->
+<div id="ProductMetafields"
+     data-base-price-per-sqcm="{{ product.metafields.custom.base_price_per_sqcm }}"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const wInp    = document.getElementById('customWidth');
+  const lInp    = document.getElementById('customLength');
+  const qInp    = document.getElementById('customQty');
+  const priceEl = document.getElementById('customTotalPrice');
+  const buyBtn  = document.getElementById('buyNowBtn');
+  const cartBtn = document.getElementById('addToCartBtn');
+
+  const basePrice = parseFloat(document.getElementById('ProductMetafields').dataset.basePricePerSqcm || '0');
+  const MIN = 50, MAX = 3500;
+
+  const fmt = amt => `₹${parseFloat(amt).toFixed(2)}`;
+  const isValid = val => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= MIN && num <= MAX;
+  };
+
+  // Auto-fill from URL
+  const params = new URLSearchParams(window.location.search);
+  const wVal = parseFloat(params.get('width'));
+  const lVal = parseFloat(params.get('length'));
+  const qVal = parseInt(params.get('qty'));
+
+  if (!isNaN(wVal)) wInp.value = wVal;
+  if (!isNaN(lVal)) lInp.value = lVal;
+  if (!isNaN(qVal) && qVal >= 1) qInp.value = qVal;
+
+  function refresh() {
+    const W = parseFloat(wInp.value),
+          L = parseFloat(lInp.value),
+          Q = parseInt(qInp.value);
+
+    if (isValid(W) && isValid(L) && Q >= 1 && basePrice > 0) {
+      const totalPrice = Math.round(W * L * Q * basePrice);
+      priceEl.textContent = `Total Price: ${fmt(totalPrice)}`;
+      enableBtns(true);
+    } else {
+      priceEl.textContent = `Total Price: ₹0.00`;
+      enableBtns(false);
+    }
+  }
+
+  function enableBtns(enabled) {
+    [buyBtn, cartBtn].forEach(btn => {
+      btn.disabled = !enabled;
+      btn.style.opacity = enabled ? 1 : 0.6;
+      btn.style.cursor  = enabled ? 'pointer' : 'not-allowed';
+    });
+  }
+
+  [wInp, lInp, qInp].forEach(el => el.addEventListener('input', refresh));
+  refresh();
+
+  function getPayload() {
+    const W = parseFloat(wInp.value),
+          L = parseFloat(lInp.value),
+          Q = parseInt(qInp.value),
+          total = Math.round(W * L * Q * basePrice);
+
+    return {
+      items: [{
+        id: {{ product.variants.first.id }},
+        quantity: total,
+        properties: {
+          Width: `${W} mm`,
+          Length: `${L} mm`,
+          Sheets: Q,
+          "Calculated Total": fmt(total)
+        }
+      }]
+    };
+  }
+
+  buyBtn.addEventListener('click', () => {
+    const payload = getPayload();
+    fetch('/cart/clear.js', { method: 'POST' })
+      .then(() =>
+        fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+      )
+      .then(() => location.href = '/checkout')
+      .catch(console.error);
+  });
+
+  cartBtn.addEventListener('click', () => {
+    const payload = getPayload();
+
+    cartBtn.textContent = 'Adding...';
+    cartBtn.disabled = true;
+
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(() => {
+      // Refresh the page after cart update
+      location.reload();
+    })
+    .catch(err => {
+      console.error(err);
+      cartBtn.textContent = 'Add to Cart';
+      cartBtn.disabled = false;
+    });
+  });
+});
+</script>
+
+<style>
+.custom-dimension-wrapper {
+  padding: 15px 0;
+}
+.custom-dimension-wrapper input {
+  display: block;
+  width: 100%;
+  padding: 10px 5px;
+  margin-bottom: 10px;
+}
+.custom-dimension-wrapper button {
+  width: 100%;
+  padding: 15px 25px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  background: #000;
+  color: #fff;
+  margin-bottom: 10px;
+  transition: .3s;
+  border: 1px solid #000;
+}
+.custom-dimension-wrapper button:hover {
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+}
+</style>
+
+{% schema %}
+{
+  "name": "Product Dimension Price",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
