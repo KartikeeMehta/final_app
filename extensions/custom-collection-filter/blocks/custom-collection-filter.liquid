@@ -53,7 +53,6 @@
   </div>
 </div>
 
-<!-- Expose store currency info -->
 <script>
   window.ShopCurrency = {
     iso_code: "{{ shop.currency }}",
@@ -75,20 +74,19 @@ document.addEventListener("DOMContentLoaded", function () {
   let matchedProduct = null;
   let basePrice = 0;
 
-function formatCurrency(amount) {
-  try {
-    const iso = window.ShopCurrency?.iso_code || "INR";
-    const formatter = new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: iso,
-      currencyDisplay: "symbol"
-    });
-    return formatter.format(amount); // e.g., ₹123.45 or $123.45
-  } catch {
-    return "₹" + parseFloat(amount).toFixed(2);
+  function formatCurrency(amount) {
+    try {
+      const iso = window.ShopCurrency?.iso_code || "INR";
+      const formatter = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: iso,
+        currencyDisplay: "symbol"
+      });
+      return formatter.format(amount);
+    } catch {
+      return "₹" + parseFloat(amount).toFixed(2);
+    }
   }
-}
-
 
   function validateInput(input, min = 50, max = 3500) {
     const val = parseFloat(input.value);
@@ -98,13 +96,15 @@ function formatCurrency(amount) {
   function updateTotal() {
     const width = parseFloat(widthInput.value);
     const length = parseFloat(lengthInput.value);
+    const thickness = parseFloat(thicknessDropdown.value);
 
     if (
       validateInput(widthInput) &&
       validateInput(lengthInput) &&
+      !isNaN(thickness) &&
       basePrice > 0
     ) {
-      const total = width * length * basePrice;
+      const total = (width * length * basePrice) / thickness;
       priceDisplay.textContent = formatCurrency(total);
       shopNowBtn.disabled = false;
       shopNowBtn.style.cursor = "pointer";
@@ -151,14 +151,14 @@ function formatCurrency(amount) {
 
     thicknessDropdown.innerHTML = `<option value="">Select Thickness</option>`;
     thicknesses.forEach(t => {
-      thicknessDropdown.innerHTML += `<option value="${t}">${t}</option>`;
+      thicknessDropdown.innerHTML += `<option value="${parseFloat(t)}">${t}</option>`;
     });
     reset();
   });
 
   thicknessDropdown.addEventListener("change", async function () {
     const selectedVendor = vendorDropdown.value;
-    const selectedThickness = thicknessDropdown.value;
+    const selectedThickness = thicknessDropdown.options[thicknessDropdown.selectedIndex].text;
     if (!selectedVendor || !selectedThickness) return;
 
     matchedProduct = allProducts.find(
@@ -180,6 +180,7 @@ function formatCurrency(amount) {
 
   widthInput.addEventListener("input", updateTotal);
   lengthInput.addEventListener("input", updateTotal);
+  thicknessDropdown.addEventListener("change", updateTotal);
 
   shopNowBtn.addEventListener("click", function () {
     if (!shopNowBtn.disabled && matchedProduct) {

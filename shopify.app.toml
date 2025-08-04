@@ -3,7 +3,7 @@
 client_id = "a01ad2392af9dbe183163bd8e5d062b8"
 name = "cut-the-size"
 handle = "cut-the-size"
-application_url = "https://styles-photos-thesis-ladies.trycloudflare.com"
+application_url = "https://entrance-saints-closer-contributions.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://styles-photos-thesis-ladies.trycloudflare.com/auth/callback", "https://styles-photos-thesis-ladies.trycloudflare.com/auth/shopify/callback", "https://styles-photos-thesis-ladies.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://entrance-saints-closer-contributions.trycloudflare.com/auth/callback", "https://entrance-saints-closer-contributions.trycloudflare.com/auth/shopify/callback", "https://entrance-saints-closer-contributions.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

@@ -10,24 +10,22 @@
     <input type="number" id="customQty" min="1" value="1" required />
 
     <p id="customTotalPrice" style="margin-top:10px;font-weight:bold;">
-      Total Price: ₹0.00
+      Total Price: {{ cart.currency.symbol }}0.00
     </p>
 
-    <!-- Add to Cart -->
     <button id="addToCartBtn" disabled style="opacity:.6;cursor:not-allowed;">
       Add to Cart
     </button>
-
-    <!-- Buy Now -->
     <button id="buyNowBtn" disabled style="opacity:.6;cursor:not-allowed;">
       Buy it Now
     </button>
   </div>
 </div>
 
-<!-- Base price per sqcm from metafield -->
-<div id="ProductMetafields"
-     data-base-price-per-sqcm="{{ product.metafields.custom.base_price_per_sqcm }}"></div>
+<div id="ProductMeta"
+     data-base-price-per-sqcm="{{ product.metafields.custom.base_price_per_sqcm }}"
+     data-thickness="{{ product.type | remove: 'mm' | strip }}">
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,16 +36,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const buyBtn  = document.getElementById('buyNowBtn');
   const cartBtn = document.getElementById('addToCartBtn');
 
-  const basePrice = parseFloat(document.getElementById('ProductMetafields').dataset.basePricePerSqcm || '0');
+  const basePrice = parseFloat(document.getElementById('ProductMeta').dataset.basePricePerSqcm || '0');
+  const thickness = parseFloat(document.getElementById('ProductMeta').dataset.thickness || '1');
+  const currencySymbol = "{{ cart.currency.symbol }}";
+
   const MIN = 50, MAX = 3500;
 
-  const fmt = amt => `₹${parseFloat(amt).toFixed(2)}`;
+  const fmt = amt => `${currencySymbol}${parseFloat(amt).toFixed(2)}`;
   const isValid = val => {
     const num = parseFloat(val);
     return !isNaN(num) && num >= MIN && num <= MAX;
   };
 
-  // Auto-fill from URL
   const params = new URLSearchParams(window.location.search);
   const wVal = parseFloat(params.get('width'));
   const lVal = parseFloat(params.get('length'));
@@ -62,12 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
           L = parseFloat(lInp.value),
           Q = parseInt(qInp.value);
 
-    if (isValid(W) && isValid(L) && Q >= 1 && basePrice > 0) {
-      const totalPrice = Math.round(W * L * Q * basePrice);
-      priceEl.textContent = `Total Price: ${fmt(totalPrice)}`;
+    if (isValid(W) && isValid(L) && Q >= 1 && basePrice > 0 && thickness > 0) {
+      const rawPrice = W * L * Q * basePrice / thickness;
+      const finalPrice = rawPrice;
+      priceEl.textContent = `Total Price: ${fmt(finalPrice)}`;
       enableBtns(true);
     } else {
-      priceEl.textContent = `Total Price: ₹0.00`;
+      priceEl.textContent = `Total Price: ${currencySymbol}0.00`;
       enableBtns(false);
     }
   }
@@ -87,7 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const W = parseFloat(wInp.value),
           L = parseFloat(lInp.value),
           Q = parseInt(qInp.value),
-          total = Math.round(W * L * Q * basePrice);
+          raw = W * L * Q * basePrice  / thickness,
+          total = Math.round(raw);
 
     return {
       items: [{
@@ -97,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
           Width: `${W} mm`,
           Length: `${L} mm`,
           Sheets: Q,
+          Thickness: "{{ product.type }}",
           "Calculated Total": fmt(total)
         }
       }]
@@ -119,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   cartBtn.addEventListener('click', () => {
     const payload = getPayload();
-
     cartBtn.textContent = 'Adding...';
     cartBtn.disabled = true;
 
@@ -128,10 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
-    .then(() => {
-      // Refresh the page after cart update
-      location.reload();
-    })
+    .then(() => location.reload())
     .catch(err => {
       console.error(err);
       cartBtn.textContent = 'Add to Cart';
